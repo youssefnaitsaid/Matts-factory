@@ -1,0 +1,16 @@
+# factory runtime state (live job files) — keep manifest, ignore job runs
+factory/jobs/*
+!factory/jobs/index.json
+
+# factory worktrees (live outside repo at ../<name>-factory/)
+*-factory/
+
+# deps / build
+node_modules/
+dist/
+skills-lock.json
+
+# impeccable
+.impeccable
+.agents/skills/impeccable
+PRODUCT.MD
