@@ -43,7 +43,6 @@ Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/
 
 ```
 factory/
-  README.md            this file
   GLOSSARY.md          factory canon (host project vocabulary untouched)
   dashboard.html       static board (dark, factory-owned theme)
   jobs/index.json      manifest of job ids (orchestrator-maintained)
