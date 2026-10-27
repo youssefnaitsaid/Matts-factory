@@ -1,4 +1,11 @@
-import { addTodo, DEFAULT_FILTER, removeTodo, selectView, toggleTodo } from './todos.js';
+import {
+  addTodo,
+  DEFAULT_FILTER,
+  isEmptyResult,
+  removeTodo,
+  selectView,
+  toggleTodo,
+} from './todos.js';
 
 const state = { todos: [], filter: DEFAULT_FILTER };
 
@@ -39,6 +46,9 @@ function render() {
       return item;
     }),
   );
+  const isEmpty = isEmptyResult(state.todos, state.filter);
+  list.hidden = isEmpty;
+  document.querySelector('#empty').hidden = !isEmpty;
   document.querySelector('#count').textContent = `${view.activeCount} active`;
 }
 

@@ -29,3 +29,7 @@ export function filterTodos(todos, filter) {
 export function selectView(todos, filter) {
   return { visible: filterTodos(todos, filter), activeCount: activeCount(todos) };
 }
+
+export function isEmptyResult(todos, filter) {
+  return filterTodos(todos, filter).length === 0;
+}
