@@ -7,6 +7,7 @@ import {
   DEFAULT_FILTER,
   FILTERS,
   filterTodos,
+  isEmptyResult,
   removeTodo,
   selectView,
   toggleTodo,
@@ -127,4 +128,27 @@ test('removing a todo keeps the current filter applied', () => {
     filterTodos(remaining, 'completed').map((todo) => todo.text),
     [],
   );
+});
+
+test('an empty list is an empty result for every filter', () => {
+  for (const filter of FILTERS) {
+    assert.equal(isEmptyResult([], filter), true);
+  }
+});
+
+test('Active is an empty result when no todo is open', () => {
+  const todos = sampleTodos();
+  assert.equal(isEmptyResult(todos, 'active'), false);
+  assert.equal(isEmptyResult(toggleTodo(todos, todos[0].id), 'active'), true);
+});
+
+test('Completed is an empty result when no todo is done', () => {
+  const todos = addTodo(addTodo([], 'one'), 'two');
+  assert.equal(isEmptyResult(todos, 'completed'), true);
+  assert.equal(isEmptyResult(sampleTodos(), 'completed'), false);
+});
+
+test('All is only empty when there are no todos at all', () => {
+  assert.equal(isEmptyResult(sampleTodos(), 'all'), false);
+  assert.equal(isEmptyResult([], 'all'), true);
 });
