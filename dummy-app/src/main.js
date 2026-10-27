@@ -1,6 +1,8 @@
 import {
   addTodo,
+  clearCompleted,
   DEFAULT_FILTER,
+  hasCompleted,
   isEmptyResult,
   removeTodo,
   selectView,
@@ -10,6 +12,7 @@ import {
 const state = { todos: [], filter: DEFAULT_FILTER };
 
 const filterButtons = document.querySelectorAll('#filters [data-filter]');
+const clearButton = document.querySelector('#clear');
 
 function render() {
   const view = selectView(state.todos, state.filter);
@@ -49,6 +52,7 @@ function render() {
   const isEmpty = isEmptyResult(state.todos, state.filter);
   list.hidden = isEmpty;
   document.querySelector('#empty').hidden = !isEmpty;
+  clearButton.disabled = !hasCompleted(state.todos);
   document.querySelector('#count').textContent = `${view.activeCount} active`;
 }
 
@@ -58,6 +62,11 @@ for (const button of filterButtons) {
     render();
   });
 }
+
+clearButton.addEventListener('click', () => {
+  state.todos = clearCompleted(state.todos);
+  render();
+});
 
 document.querySelector('#form').addEventListener('submit', (event) => {
   event.preventDefault();
