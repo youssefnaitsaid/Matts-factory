@@ -29,9 +29,9 @@ Communication to and from subagents should be sparse. Communicate primarily thro
    - the moment an implementer is spawned, its `job.json` tickets entry and ticket file Status are set to `doing` (read-modify-write, tickets map only);
    - formats per host convention and commits on its ticket branch per host style (check the host `AGENTS.md`; originating host used `npx prettier --check`/`--write` and `feat(scope): Description`);
    - merges the integration branch tip into its own branch before reporting done;
-   - on merge, its `job.json` tickets entry and ticket file Status are set to `done` immediately (read-modify-write, tickets map only), so Dashboard chips fill in as tickets land;
+   - on merge, its `job.json` tickets entry is set to `done`, and one read-modify-write on the ticket file sets `**Status:** done` and ticks every acceptance box (`- [ ]` → `- [x]`), immediately, so Dashboard chips and the ticket agree;
    - rewrites the first line of the Job's `build.md` to this round's `STATUS: READY` (or `STATUS: BLOCKED` + reason), then appends its round Log under a `## Round N` heading, so line 1 always describes the current round;
-   - for UI tickets: serves its worktree on its assigned port and performs the host's visual-check procedure (originating host: throwaway Playwright script, captures outside versioned assets).
+   - for UI tickets: serves its worktree on its assigned port and performs the host's visual-check procedure (originating host: throwaway Playwright script, captures outside versioned assets). When the surface cannot render (no viewport or screenshot), it writes `Unverified: <what could not be checked>` in this round's `build.md` section instead of claiming a visual pass.
    Work runs from `<repo>`; follow the host `AGENTS.md` shell conventions (originating host: Windows PowerShell 5.1 — pass `workdir`, never `cd`).
 
 5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**.

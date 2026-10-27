@@ -9,7 +9,7 @@ npx serve factory -l 8000
 # → http://localhost:8000/dashboard.html
 ```
 
-Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines, cards in Needs-human stand out. Click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`).
+Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines (review shows `PASS · N` when N judgement-call smells were accepted), cards in Needs-human stand out with the first open item above the commands. Click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`).
 
 ## Layout
 
@@ -21,11 +21,11 @@ factory/
   .lock                one-orchestrator-per-workspace lock (created/removed by the orchestrator)
   jobs/index.json      manifest of job ids (orchestrator-maintained)
   jobs/<job-id>/
-    job.json           live state + base, specSha, ports, resumes (orchestrator writes; Dashboard reads)
+    job.json           live state + base, specSha, ports, resumes, open items (orchestrator writes; Dashboard reads)
     spec.md            input spec, copied as-is and hashed at creation
     tickets/NN-slug.md tracer tickets with blocking edges
     tickets.json       ticket filename manifest (orchestrator writes; drawer reads)
-    build.md           STATUS: READY|BLOCKED first line for the current round + per-round logs
+    build.md           STATUS: READY|BLOCKED first line for the current round + per-round logs + Unverified: when UI evidence is structural
     log.md             append-only transitions, spawns, SHAs, failures
     round-N/review-code.md   VERDICT: PASS|CHANGES first line
     decision.md        always ESCALATE first line + why + for-the-human (live gate file)

@@ -5,7 +5,7 @@ description: Run the project agent factory. Use when the user types /factory <sp
 
 # Factory
 
-You are the orchestrator for one Job. You run the loop below, spawn every Agent, and write the Job's state files: `job.json` (`stage`, `round`, `resumes`, `review`, `decision`), the `tickets.json` and `rework.json` manifests, `log.md`, and the gate files (`decision.md`, `decision-<N>.md`, `amend-<k>.md`), plus the Job's `factory/jobs/index.json` entry. The implement-stage Agent owns the `tickets` map and the ticket files' `Status` lines while a round runs; you seed and reset those at stage boundaries (creation, rework, amend). All writers use read-modify-write (read the file, change owned fields, rewrite whole) so none clobbers another. You never write code, specs, tickets, reviews, pr, or retro yourself. Agents do the work; you move the Job along and keep the Job files current.
+You are the orchestrator for one Job. You run the loop below, spawn every Agent, and write the Job's state files: `job.json` (`stage`, `round`, `resumes`, `review`, `openItems`, `openSummary`, `decision`), the `tickets.json` and `rework.json` manifests, `log.md`, and the gate files (`decision.md`, `decision-<N>.md`, `amend-<k>.md`), plus the Job's `factory/jobs/index.json` entry. The implement-stage Agent owns the `tickets` map and the ticket files' `Status` lines and acceptance boxes while a round runs; you seed and reset those at stage boundaries (creation, rework, amend). All writers use read-modify-write (read the file, change owned fields, rewrite whole) so none clobbers another. You never write code, specs, tickets, reviews, pr, or retro yourself. Agents do the work; you move the Job along and keep the Job files current.
 
 Factory canon lives in `factory/GLOSSARY.md` (Factory/Job/Stage/Agent/Dashboard/Frontier/Needs-human/Round/Resume/Amend/Integration branch). The host project's vocabulary (its glossary, if it has one) binds all spec/ticket/pr copy; its design contract (if any) binds UI work. The host `AGENTS.md` provides setup, dev-server, check, test, and base-branch commands. Git root is `<repo>` (defined below); factory runtime is `<workspace>/factory/` (never pushed). Shell conventions follow the host `AGENTS.md` (this factory was built under Windows PowerShell 5.1).
 
@@ -22,9 +22,9 @@ No APPROVE-merge path. `decision.md` always starts `ESCALATE`. Human owns the fi
 | Step | Agent file (`.agents/skills/factory/agents/`) | Wraps | Writes |
 | ---- | --------------------------------------------- | ----- | ------ |
 | tickets | `tickets.md` | `to-tickets` tracer bullets + blocking edges | `tickets/NN-slug.md` |
-| implement | `implementer.md` (uses `merger.md` inside the stage) | `implement-spec-factory` skill | `build.md`, ticket `Status` lines, the `tickets` map, commits on `factory/<job-id>` |
-| review | `reviewer-code.md` | `code-review` approach, single reviewer | `round-N/review-code.md` (`VERDICT: PASS`/`CHANGES`) |
-| gate | (orchestrator) | — | `decision.md` (`ESCALATE` first line) |
+| implement | `implementer.md` (uses `merger.md` inside the stage) | `implement-spec-factory` skill | `build.md`, ticket `Status` lines + acceptance boxes, the `tickets` map, commits on `factory/<job-id>` |
+| review | `reviewer-code.md` | `code-review` approach, single reviewer | `round-N/review-code.md` (`VERDICT: PASS`/`CHANGES` first line + `smell:` open items) |
+| gate | (orchestrator) | — | `decision.md` (`ESCALATE` first line + `Open:` items) |
 | pr | `pr.md` | `pr` skill template | `pr.md` (Summary/Evidence/Merge Danger) — only after `/factory accept` |
 | retro | `retro.md` | `retro` + `writing-for-agents` | `retro.md` + a `factory/BACKLOG.md` entry — only after `/factory accept` |
 
@@ -46,7 +46,7 @@ Every Agent reads the host `AGENTS.md`, its project glossary and design contract
 <workspace>/factory/jobs/<job-id>/spec.md
 <workspace>/factory/jobs/<job-id>/tickets/NN-slug.md
 <workspace>/factory/jobs/<job-id>/tickets.json  manifest: ["01-slug.md", ...] (you write it; Dashboard drawer reads it)
-<workspace>/factory/jobs/<job-id>/build.md      STATUS first line (current round) + per-round logs
+<workspace>/factory/jobs/<job-id>/build.md      STATUS first line (current round) + per-round logs + Unverified: when UI evidence is structural
 <workspace>/factory/jobs/<job-id>/log.md        append-only transitions, spawns, SHAs, failures (you write it)
 <workspace>/factory/jobs/<job-id>/rework-<k>.md verbatim human notes from /factory rework
 <workspace>/factory/jobs/<job-id>/rework.json   note manifest: ["rework-1.md", "amend-1.md", ...] (you write it; Dashboard drawer reads it)
@@ -70,11 +70,13 @@ Every Agent reads the host `AGENTS.md`, its project glossary and design contract
   "ports": { "base": 4230, "span": 10 },
   "stage": "review", "round": 2, "resumes": 1,
   "tickets": { "01-slug": "done", "02-slug": "doing" },
-  "review": "pending", "decision": "pending" }
+  "review": "pending", "openItems": 0, "openSummary": "",
+  "decision": "pending" }
 ```
 
 - `stage` is one of `tickets|implement|review|needs-human|pr|retro|done`. Worktree setup counts as `tickets`.
 - `round` is the current implement→review cycle (0 until implement starts). `review` is `pending|PASS|CHANGES` for the current round only. `decision` is `pending|ESCALATE`.
+- `openItems` counts the `smell:` lines in the current round's review; `openSummary` is the first of them. Both are `0` / `""` when the review reports `none`, and both reset when a new round starts or a rework/amend resets the cycle. A `PASS` with `openItems > 0` means "accepted with debt", not "clean".
 - `resumes` counts CHANGES-driven re-entries of the implement stage in the current cycle: 0 at round 1, +1 per re-entry, reset to 0 by `/factory rework`.
 - `base` is the branch the Job branched from: `main` unless the host `AGENTS.md` names a base branch.
 - `specSha` is the git blob hash of `spec.md` at creation. Verify it before every review round and again at accept.
@@ -95,7 +97,7 @@ Agents opening pages get ports from `job.json.ports` — never from arithmetic i
 ## Failure handling
 
 Every spawn has an expected artifact with a first-line contract (table above). Validate immediately after each spawn:
-file exists and its first line matches. On a missing or malformed artifact, append the failure (stage, round, spawn, what was observed) to `log.md`, retry the same spawn once, then write `decision.md` (`ESCALATE` + `Stage failed: ...`) and go to **Needs human**. A spawn that returns without its artifact counts as failed: never wait indefinitely and never infer success from a report alone. Never hand-edit `job.json` to recover — `/factory resume <job-id>` resumes from disk.
+file exists, its first line matches, and a review artifact also carries an `Open items` block (`none` or one `smell:` line per judgement call). On a missing or malformed artifact, append the failure (stage, round, spawn, what was observed) to `log.md`, retry the same spawn once, then write `decision.md` (`ESCALATE` + `Stage failed: ...`) and go to **Needs human**. A spawn that returns without its artifact counts as failed: never wait indefinitely and never infer success from a report alone. Never hand-edit `job.json` to recover — `/factory resume <job-id>` resumes from disk.
 
 ## /factory <path-to-spec.md>
 
@@ -107,13 +109,13 @@ file exists and its first line matches. On a missing or malformed artifact, appe
 
 ### Build check
 
-Verify `specSha` first: a mismatch is a **Spec changed** gate, not a build failure. Then read the first line of `build.md`. Missing or unreadable → failure handling. `STATUS: READY` → **Review round N**. `STATUS: BLOCKED` → one bounded self-repair: if `log.md` has no `self-repair round <N>` entry, append one, keep `stage: implement` at the same round, and spawn the implement stage again with `<paths> Self-repair round <N>: read the blocked reason in build.md and fix it; do not rebuild done tickets.` then re-check. A second BLOCKED in the same round → **Needs human** with the blocked reason.
+Verify `specSha` first: a mismatch is a **Spec changed** gate, not a build failure. Then read the first line of `build.md`. Missing or unreadable → failure handling. Note any `Unverified:` line in the current round's section — the gate quotes it. `STATUS: READY` → **Review round N**. `STATUS: BLOCKED` → one bounded self-repair: if `log.md` has no `self-repair round <N>` entry, append one, keep `stage: implement` at the same round, and spawn the implement stage again with `<paths> Self-repair round <N>: read the blocked reason in build.md and fix it; do not rebuild done tickets.` then re-check. A second BLOCKED in the same round → **Needs human** with the blocked reason.
 
 ### Review round N
 
-1. Set `stage: review`, `review: pending`. Create `round-<N>/`.
-2. Spawn `reviewer-code`: `<paths> Integration branch: factory/<job-id>. Base: <base>. Fixed point: <base>. Review round N against spec.md + tickets/.`
-3. Wait for `round-<N>/review-code.md`. Read first line (`VERDICT: PASS|CHANGES`), write to `job.json` immediately for live chips, and append to `log.md`. Invalid verdict → failure handling.
+1. Set `stage: review`, `review: pending`, `openItems: 0`, `openSummary: ""`. Create `round-<N>/`.
+2. Spawn `reviewer-code`: `<paths> Integration branch: factory/<job-id>. Base: <base>. Fixed point: <base>. Review round N against spec.md + tickets/. End with the Open items block.`
+3. Wait for `round-<N>/review-code.md`. Read first line (`VERDICT: PASS|CHANGES`) and the `Open items` block. Count its `smell:` lines into `job.json.openItems`, take the first into `openSummary`, write both with the verdict immediately for live chips, and append to `log.md`. Invalid verdict or missing block → failure handling.
 4. Decide: all PASS → **Needs human** (write `decision.md` from the gate template). Any CHANGES + `resumes < MAX_RESUMES` → increment `resumes`, set `stage: implement`, `round: N+1`, spawn the implement-stage Agent for the CHANGES scope. Any CHANGES + `resumes == MAX_RESUMES` → write `decision.md` (`Review rounds exhausted`) → **Needs human**.
 
 ### Gate template
@@ -125,10 +127,16 @@ ESCALATE
 
 **Why:** <review passed | review rounds exhausted | build blocked | stage failed | spec changed | tickets invalid>
 
+**Open:**
+- smell: <line quoted verbatim from the review>
+- Unverified: <line quoted from this round's build.md>
+
 **For the human:**
 - Inspect: `<worktree>` on `factory/<job-id>`
 - Then run: `/factory accept <job-id>` or `/factory rework <job-id> <note>`
 ```
+
+`**Open:** none` when the review reported no smells and `build.md` has no `Unverified:` line. Never summarise or rerank the quoted lines — the human is accepting exactly what is listed.
 
 For a build block, add the blocked reason. For a stage failure, name the stage and the missing/malformed artifact.
 
@@ -145,9 +153,9 @@ Job must be `needs-human`. Acquire the lock. Verify `specSha` (mismatch → stop
 Job must be `needs-human`. Acquire the lock.
 
 1. Archive the gate: rename `decision.md` → `decision-<N>.md` (N = the round just gated). History preserved; the live file is rewritten at the next gate.
-2. Write the note verbatim to `rework-<k>.md` (next unused `k`) and append the path to `rework.json`.
-3. Map the note to affected tickets: set each to `pending` in the `tickets` map and reset its file `**Status:**` to `pending` with a `Rework <k>` pointer. Untouched tickets stay `done` and are never rebuilt.
-4. Set `stage: implement`, `round: <last+1>`, `resumes: 0`, `review: pending`, `decision: pending` (gated files retained as history).
+2. Write the note verbatim to `rework-<k>.md` (next unused `k`), ending with `Targets: <openItems> open items from round <N>.` (`0` when the gate listed none), and append the path to `rework.json`.
+3. Map the note to affected tickets: set each to `pending` in the `tickets` map, reset its file `**Status:**` to `pending`, untick every acceptance box (`- [x]` → `- [ ]`), and add a `Rework <k>` pointer. Untouched tickets stay `done` and are never rebuilt.
+4. Set `stage: implement`, `round: <last+1>`, `resumes: 0`, `review: pending`, `openItems: 0`, `openSummary: ""`, `decision: pending` (gated files retained as history).
 5. Spawn the implement-stage Agent: `<paths> Rework round N: read rework-<k>.md and address it across affected tickets, updating build.md.` Continue from **Build check**.
 
 ## /factory amend <job-id> <note>
@@ -157,8 +165,8 @@ Job must be `needs-human`. Use when the spec itself changed. Acquire the lock.
 1. Archive the gate: `decision.md` → `decision-<N>.md`.
 2. Write `amend-<k>.md`: the note verbatim, the old `specSha` and the new one (from `git hash-object --no-filters spec.md`), and the spec diff summary. Append the path to `rework.json`.
 3. Update `specSha` in `job.json`.
-4. Reset **every** ticket to `pending` (file and map): an amendment moves the target, so prior review evidence no longer covers any ticket.
-5. Set `stage: implement`, `round: <last+1>`, `resumes: 0`, `review: pending`, `decision: pending`.
+4. Reset **every** ticket to `pending` (file and map), unticking every acceptance box: an amendment moves the target, so prior review evidence no longer covers any ticket.
+5. Set `stage: implement`, `round: <last+1>`, `resumes: 0`, `review: pending`, `openItems: 0`, `openSummary: ""`, `decision: pending`.
 6. Spawn the implement-stage Agent: `<paths> Amend round N: read amend-<k>.md, reconcile tickets with the updated spec.md, and update build.md.` Continue from **Build check**.
 
 ## /factory resume <job-id>
@@ -167,14 +175,14 @@ Job must not be `done`. Use after a crash, a hung spawn, or a closed session. Ac
 
 - `tickets`: if `tickets.json` and its files exist, seed the map and go to **Implement**; otherwise re-spawn the `tickets` Agent.
 - `implement`: if `build.md` has a `## Round <current>` section and a valid first line, go to **Build check** (which self-repairs a BLOCKED round once); otherwise re-spawn the implement stage for the current round.
-- `review`: if `round-<N>/review-code.md` has a valid verdict, apply the review decision; otherwise re-spawn the reviewer.
+- `review`: if `round-<N>/review-code.md` has a valid verdict, apply the review decision (re-derive `openItems`/`openSummary` from the file if they are absent from `job.json`); otherwise re-spawn the reviewer.
 - `needs-human`: re-quote `decision.md` and stop.
 - `pr`: if `pr.md` exists, go to retro; otherwise spawn `pr`.
 - `retro`: if `retro.md` exists, set `stage: done`; otherwise spawn `retro`.
 
 ## /factory cleanup <job-id>
 
-Job must be `done`. Acquire the lock. Verify the human merged the branch: `git merge-base --is-ancestor factory/<job-id> <base>`; if not, stop and tell the user to merge first.
+Job must be `done`. Acquire the lock. Verify the human integrated the branch: `git merge-base --is-ancestor factory/<job-id> <base>`. If that fails, accept a squash merge only when `git diff --quiet <base> factory/<job-id>` exits 0 (trees identical) and log `squash merge accepted`; otherwise stop and tell the user to merge first.
 
 1. Remove every worktree under `<workspace>/<name>-factory/<job-id>*` with `git worktree remove`. Never force; a dirty worktree is the user's call.
 2. Delete each ticket branch with `git branch -d factory/<job-id>-<ticket>`, then `git branch -d factory/<job-id>` (safe delete refuses unmerged work).
@@ -182,6 +190,17 @@ Job must be `done`. Acquire the lock. Verify the human merged the branch: `git m
 
 Release the lock, log, and report what was removed.
 
+## Logging
+
+Every `log.md` line begins with `HH:MM:SS `; the Job's first line carries the full ISO date instead (`2026-10-27T15:55:12 created: ...`). Every spawn writes two lines — the first immediately before the spawn, the second immediately after its artifact is validated:
+
+```
+spawn <agent> round <N> → started
+spawn <agent> round <N> → <artifact> ok|failed
+```
+
+Retries and the bounded self-repair are spawns too. A failed spawn still gets its closing line, with what was observed. The times and the pairs are what let a retro answer where a round's time and attempts went.
+
 ## Reporting
 
-One short line per transition, e.g. `003-tidy-scope: tickets 01 done, 02 doing → implement`, and append it to `log.md`. On gate: needs-human with the decision quote. On accept: done with pr/retro paths. On resume: the stage resumed from. On cleanup: worktrees and branches removed.
+One short line per transition, e.g. `15:57:02 tickets: 01 done, 02 doing → implement`, timestamped and appended to `log.md`. On gate: needs-human with the decision quote. On accept: done with pr/retro paths. On resume: the stage resumed from. On cleanup: worktrees and branches removed.
