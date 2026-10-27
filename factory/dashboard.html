@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='black' d='M16 28 5 10h22z'/%3E%3C/svg%3E">
-<title>Factory · Vercel deployments board v2</title>
+<title>Factory</title>
 <style>
   :root{
     --bg:#fafafa; --panel:#ffffff; --panel-2:#f4f4f5;
@@ -23,7 +23,7 @@
   body{background:var(--bg);color:var(--text);font:13.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
   ::selection{background:#000;color:#fff}
   :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
-  /* top nav — Vercel */
+  /* top nav */
   .nav{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .nav-in{max-width:1500px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:0 24px;height:60px}
   .logo{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px}
@@ -129,16 +129,22 @@
   <div class="nav-right"><div class="live" id="status" role="status">connecting…</div></div>
 </div></header>
 <div class="proj">
-  <h1>agent-pipelines</h1>
+  <h1>Agent Pipelines</h1>
   <div class="sub"><span class="pill"><span class="d"></span>production · tickets → implement → review → needs-human → pr → retro</span><span id="counts-line" style="font-family:var(--mono);font-size:11.5px"></span></div>
   <div class="filterbar">
     <label class="fsearch"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" type="search" placeholder="Search deployments… (job, feature, branch, ticket)" aria-label="Search jobs"></label>
-    <span class="fbtn">Stage: All</span><span class="fbtn">Branch: factory/*</span>
   </div>
 </div>
 <div id="banner"></div>
 <main class="board" id="board" aria-live="polite"></main>
-<footer><span>/factory &lt;spec-path&gt;</span><span>/factory accept &lt;job-id&gt;</span><span>/factory rework &lt;job-id&gt; &lt;note&gt;</span><span>npx serve factory -l 8000 → dashboard-vercel-2.html</span></footer>
+<footer>
+  <span>/factory &lt;spec-path&gt;</span> · 
+  <span>/factory accept &lt;job-id&gt;</span> · 
+  <span>/factory rework &lt;job-id&gt; &lt;note&gt;</span> · 
+  <span>/factory resume &lt;job-id&gt;</span> · 
+  <span>/factory amend &lt;job-id&gt; &lt;note&gt;</span> · 
+  <span>/factory cleanup &lt;job-id&gt;</span>
+</footer>
 <div id="overlay"><div class="scrim" data-close></div>
 <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title">
   <div class="d-head"><div class="num" id="d-num"></div><h2 id="d-title"></h2><div id="d-branch" style="font-family:var(--mono);font-size:11px;color:var(--faint)"></div><button class="close" data-close aria-label="Close">×</button></div>
@@ -146,7 +152,7 @@
 </aside></div>
 <script>
 const POLL_MS=2000;
-const STAGES=[{key:'tickets',label:'Queued'},{key:'implement',label:'Building'},{key:'review',label:'Reviewing'},{key:'needs-human',label:'Approval required',cls:'gate'},{key:'done',label:'Done'}];
+const STAGES=[{key:'tickets',label:'Queued'},{key:'implement',label:'Building'},{key:'review',label:'Reviewing'},{key:'needs-human',label:'Human Approval',cls:'gate'},{key:'done',label:'Done'}];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let jobs=[],lastRender='',openJobId=null,openPath=null,openText=null,query='',firstLoad=true;
@@ -166,9 +172,11 @@ function card(j){
   const entries=Object.entries(j.tickets||{});const done=entries.filter(([,v])=>v==='done').length;const total=entries.length;const pct=total?Math.round(done/total*100):0;
   const[sk,sl]=vStatus(j);const human=j.stage==='needs-human';
   const openCount=Number(j.openItems||0);
-  const revLabel=(j.review||'pending')+(openCount>0?' · '+openCount:'');
+  const reviewDoing=j.stage==='review'&&(j.review||'pending')==='pending';
+  const revState=reviewDoing?'doing':(j.review||'pending');
+  const revLabel=revState+(openCount>0?' · '+openCount:'');
   const tks=entries.map(([k,v])=>'<span class="tk '+(v==='done'?'done':v==='doing'?'doing':'')+'"><span class="tk-ic">'+tkIcon(v)+'</span><span class="tk-name">'+esc(k.replace(/^\d+-/,''))+'</span><span class="tk-st">'+esc(v)+'</span></span>').join('');
-  const rev=j.round>0?'<div class="rowlabel">review</div><span class="tk '+(j.review==='PASS'?'done':'')+'"><span class="tk-ic">'+(j.review==='PASS'?IC.ok:j.review==='CHANGES'?IC.warn:IC.idle)+'</span><span class="tk-name">round '+j.round+'</span><span class="tk-st">'+esc(revLabel)+'</span></span>':'';
+  const rev=j.round>0?'<div class="rowlabel">review</div><span class="tk '+(revState==='PASS'?'done':revState==='doing'?'doing':'')+'"><span class="tk-ic">'+(revState==='PASS'?IC.ok:revState==='CHANGES'?IC.warn:revState==='doing'?IC.run:IC.idle)+'</span><span class="tk-name">round '+j.round+'</span><span class="tk-st">'+esc(revLabel)+'</span></span>':'';
   const gate=j.decision&&j.decision!=='pending'?'<div class="rowlabel">gate</div><span class="tk'+'"><span class="tk-ic">'+(j.decision==='ESCALATE'?IC.warn:IC.idle)+'</span><span class="tk-name">gate</span><span class="tk-st">'+esc(j.decision)+'</span></span>':'';
   const[num,...slug]=j.id.split('-');
   return '<button class="dep '+(human?'gate':'')+'" data-job="'+esc(j.id)+'"><div class="dep-top"><span class="dep-ic '+(sk==='building'?'spin':'')+'">'+depIcon(sk)+'</span><span style="font-family:var(--mono);font-size:11px;color:var(--faint)">'+esc(num)+' · '+esc(slug.join('-'))+'</span><span class="st-pill '+sk+'">'+sl+'</span></div><h2>'+esc(j.feature)+'</h2><div class="br"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3a2 2 0 1 0 0 .1M5 3v10M5 13a2 2 0 1 0 0 .1M11 3a2 2 0 1 0 0 .1M11 5c0 3-4 2.5-6 5"/></svg>'+esc(j.branch)+(j.round?' · R'+j.round:'')+'</div><div class="bar" aria-hidden="true"><i class="'+(pct===100?'full':'')+'" style="width:'+pct+'%"></i></div><div style="font-family:var(--mono);font-size:10.5px;color:var(--faint)">tickets '+done+'/'+total+' · '+pct+'%</div><div class="tickets">'+(tks||'<span class="tk"><span class="tk-ic">'+IC.idle+'</span><span class="tk-name">no tickets yet</span></span>')+rev+gate+'</div>'+(human?'<div class="cmdbox">'+(j.openSummary?'<span class="open">'+esc(j.openSummary)+'</span>':'')+'<span class="dim"># needs your call — run one:</span><br>/factory accept '+esc(j.id)+'<br>/factory rework '+esc(j.id)+' &lt;note&gt;</div>':'')+'</button>';

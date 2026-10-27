@@ -5,7 +5,7 @@ description: Run the project agent factory. Use when the user types /factory <sp
 
 # Factory
 
-You are the orchestrator for one Job. You run the loop below, spawn every Agent, and write the Job's state files: `job.json` (`stage`, `round`, `resumes`, `review`, `openItems`, `openSummary`, `decision`), the `tickets.json` and `rework.json` manifests, `log.md`, and the gate files (`decision.md`, `decision-<N>.md`, `amend-<k>.md`), plus the Job's `factory/jobs/index.json` entry. The implement-stage Agent owns the `tickets` map and the ticket files' `Status` lines and acceptance boxes while a round runs; you seed and reset those at stage boundaries (creation, rework, amend). All writers use read-modify-write (read the file, change owned fields, rewrite whole) so none clobbers another. You never write code, specs, tickets, reviews, pr, or retro yourself. Agents do the work; you move the Job along and keep the Job files current.
+You are the orchestrator for one Job. You run the loop below, spawn every Agent, and write the Job's state files: `job.json` (`stage`, `round`, `resumes`, `review`, `openItems`, `openSummary`, `decision`), the `tickets.json` and `rework.json` manifests, `log.md` (stage lines; the implement stage appends its ticket-spawn and merge lines), and the gate files (`decision.md`, `decision-<N>.md`, `amend-<k>.md`), plus the Job's `factory/jobs/index.json` entry. The implement-stage Agent owns the `tickets` map and the ticket files' `Status` lines and acceptance boxes while a round runs, and reopens then re-ticks any already-`done` ticket whose code a CHANGES or resume round changes; you seed and reset those at stage boundaries (creation, rework, amend). All writers use read-modify-write (read the file, change owned fields, rewrite whole; append only for `log.md`) so none clobbers another. You never write code, specs, tickets, reviews, pr, or retro yourself. Agents do the work; you move the Job along and keep the Job files current.
 
 Factory canon lives in `factory/GLOSSARY.md` (Factory/Job/Stage/Agent/Dashboard/Frontier/Needs-human/Round/Resume/Amend/Integration branch). The host project's vocabulary (its glossary, if it has one) binds all spec/ticket/pr copy; its design contract (if any) binds UI work. The host `AGENTS.md` provides setup, dev-server, check, test, and base-branch commands. Git root is `<repo>` (defined below); factory runtime is `<workspace>/factory/` (never pushed). Shell conventions follow the host `AGENTS.md` (this factory was built under Windows PowerShell 5.1).
 
@@ -22,7 +22,7 @@ No APPROVE-merge path. `decision.md` always starts `ESCALATE`. Human owns the fi
 | Step | Agent file (`.agents/skills/factory/agents/`) | Wraps | Writes |
 | ---- | --------------------------------------------- | ----- | ------ |
 | tickets | `tickets.md` | `to-tickets` tracer bullets + blocking edges | `tickets/NN-slug.md` |
-| implement | `implementer.md` (uses `merger.md` inside the stage) | `implement-spec-factory` skill | `build.md`, ticket `Status` lines + acceptance boxes, the `tickets` map, commits on `factory/<job-id>` |
+| implement | `implementer.md` (uses `merger.md` inside the stage) | `implement-spec-factory` skill | `build.md`, ticket `Status` lines + acceptance boxes (reopened when a CHANGES/resume round touches them), the `tickets` map, ticket-spawn/merge lines appended to `log.md`, commits on `factory/<job-id>` |
 | review | `reviewer-code.md` | `code-review` approach, single reviewer | `round-N/review-code.md` (`VERDICT: PASS`/`CHANGES` first line + `smell:` open items) |
 | gate | (orchestrator) | — | `decision.md` (`ESCALATE` first line + `Open:` items) |
 | pr | `pr.md` | `pr` skill template | `pr.md` (Summary/Evidence/Merge Danger) — only after `/factory accept` |
@@ -47,7 +47,7 @@ Every Agent reads the host `AGENTS.md`, its project glossary and design contract
 <workspace>/factory/jobs/<job-id>/tickets/NN-slug.md
 <workspace>/factory/jobs/<job-id>/tickets.json  manifest: ["01-slug.md", ...] (you write it; Dashboard drawer reads it)
 <workspace>/factory/jobs/<job-id>/build.md      STATUS first line (current round) + per-round logs + Unverified: when UI evidence is structural
-<workspace>/factory/jobs/<job-id>/log.md        append-only transitions, spawns, SHAs, failures (you write it)
+<workspace>/factory/jobs/<job-id>/log.md        append-only transitions, stage + ticket spawns, merges, SHAs, failures (you write stage lines; the implement stage appends ticket lines)
 <workspace>/factory/jobs/<job-id>/rework-<k>.md verbatim human notes from /factory rework
 <workspace>/factory/jobs/<job-id>/rework.json   note manifest: ["rework-1.md", "amend-1.md", ...] (you write it; Dashboard drawer reads it)
 <workspace>/factory/jobs/<job-id>/amend-<k>.md  spec amendment, old + new specSha
@@ -77,7 +77,7 @@ Every Agent reads the host `AGENTS.md`, its project glossary and design contract
 - `stage` is one of `tickets|implement|review|needs-human|pr|retro|done`. Worktree setup counts as `tickets`.
 - `round` is the current implement→review cycle (0 until implement starts). `review` is `pending|PASS|CHANGES` for the current round only. `decision` is `pending|ESCALATE`.
 - `openItems` counts the `smell:` lines in the current round's review; `openSummary` is the first of them. Both are `0` / `""` when the review reports `none`, and both reset when a new round starts or a rework/amend resets the cycle. A `PASS` with `openItems > 0` means "accepted with debt", not "clean".
-- `resumes` counts CHANGES-driven re-entries of the implement stage in the current cycle: 0 at round 1, +1 per re-entry, reset to 0 by `/factory rework`.
+- `resumes` counts CHANGES-driven re-entries of the implement stage in the current cycle: 0 at round 1, +1 per re-entry, reset to 0 by `/factory rework`. It is the CHANGES re-entry budget, not a crash counter: a crash re-entry is not counted here — it appears only as a `Resume` log line.
 - `base` is the branch the Job branched from: `main` unless the host `AGENTS.md` names a base branch.
 - `specSha` is the git blob hash of `spec.md` at creation. Verify it before every review round and again at accept.
 - `ports.base` goes to the integration worktree; ticket worker `i` (1-based, in ticket order) gets `ports.base + i`. `ports.span` consecutive ports are reserved per Job, so at most `span - 1` ticket workers run concurrently. Allocate `base = 4200 + 10 * <1-based ordinal in index.json>` unless the host `AGENTS.md` defines a port scheme, which wins and is still recorded here.
@@ -116,7 +116,7 @@ Verify `specSha` first: a mismatch is a **Spec changed** gate, not a build failu
 1. Set `stage: review`, `review: pending`, `openItems: 0`, `openSummary: ""`. Create `round-<N>/`.
 2. Spawn `reviewer-code`: `<paths> Integration branch: factory/<job-id>. Base: <base>. Fixed point: <base>. Review round N against spec.md + tickets/. End with the Open items block.`
 3. Wait for `round-<N>/review-code.md`. Read first line (`VERDICT: PASS|CHANGES`) and the `Open items` block. Count its `smell:` lines into `job.json.openItems`, take the first into `openSummary`, write both with the verdict immediately for live chips, and append to `log.md`. Invalid verdict or missing block → failure handling.
-4. Decide: all PASS → **Needs human** (write `decision.md` from the gate template). Any CHANGES + `resumes < MAX_RESUMES` → increment `resumes`, set `stage: implement`, `round: N+1`, spawn the implement-stage Agent for the CHANGES scope. Any CHANGES + `resumes == MAX_RESUMES` → write `decision.md` (`Review rounds exhausted`) → **Needs human**.
+4. Decide: all PASS → **Needs human** (write `decision.md` from the gate template). Any CHANGES + `resumes < MAX_RESUMES` → increment `resumes`, set `stage: implement`, `round: N+1`, log the transition as `review round N: CHANGES → implement round N+1 (changes <resumes>/<MAX_RESUMES>)`, then spawn the implement-stage Agent for the CHANGES scope. Any CHANGES + `resumes == MAX_RESUMES` → write `decision.md` (`Review rounds exhausted`) → **Needs human**.
 
 ### Gate template
 
@@ -192,15 +192,29 @@ Release the lock, log, and report what was removed.
 
 ## Logging
 
-Every `log.md` line begins with `HH:MM:SS `; the Job's first line carries the full ISO date instead (`2026-10-27T15:55:12 created: ...`). Every spawn writes two lines — the first immediately before the spawn, the second immediately after its artifact is validated:
+Every `log.md` entry is one action on one line, written as a bullet beginning `- HH:MM:SS `; the Job's first line carries the full ISO date instead (`- 2026-10-27T15:55:12 created: ...`). Every orchestrator spawn writes two lines — the first immediately before the spawn, the second immediately after its artifact is validated:
 
 ```
-spawn <agent> round <N> → started
-spawn <agent> round <N> → <artifact> ok|failed
+- spawn <agent> round <N> → started
+- spawn <agent> round <N> → <artifact> ok|failed
 ```
 
-Retries and the bounded self-repair are spawns too. A failed spawn still gets its closing line, with what was observed. The times and the pairs are what let a retro answer where a round's time and attempts went.
+The implement stage appends the ticket-level lines the orchestrator cannot see — one pair around each ticket implementer, plus the merge that lands it:
+
+```
+- spawn implementer <ticket> round <N> → started
+- spawn implementer <ticket> round <N> → <sha> ok | failed: <reason>
+- merge <ticket> → <sha>
+```
+
+Stage transitions name their round; a CHANGES re-entry carries its budget label:
+
+```
+- review round <N>: CHANGES → implement round <N+1> (changes <resumes>/<MAX_RESUMES>)
+```
+
+All writers append; never rewrite `log.md`. Retries and the bounded self-repair are spawns too. A failed spawn still gets its closing line, with what was observed. The times and the pairs are what let a retro answer where a round's time and attempts went.
 
 ## Reporting
 
-One short line per transition, e.g. `15:57:02 tickets: 01 done, 02 doing → implement`, timestamped and appended to `log.md`. On gate: needs-human with the decision quote. On accept: done with pr/retro paths. On resume: the stage resumed from. On cleanup: worktrees and branches removed.
+One short bullet per transition, e.g. `- 15:57:02 tickets: 01 done, 02 doing → implement`, timestamped and appended to `log.md`. On gate: needs-human with the decision quote. On accept: done with pr/retro paths. On resume: the stage resumed from. On cleanup: worktrees and branches removed.

@@ -5,7 +5,7 @@ description: "Run a factory Job's implement stage on its integration branch. Fac
 
 You are running the implement stage of one factory Job. The spec is the Job folder's `spec.md`; the tickets are its `tickets/NN-*.md` files. Integration branch, worktrees, and ports arrive in your prompt — the branch already exists, never create it.
 
-There is no issue tracker. "Resolved" means a ticket's acceptance boxes are all complete. Never open or touch PRs — the factory writes its PR only after human accept (`/factory accept`).
+There is no issue tracker. "Resolved" means a ticket's acceptance boxes are all complete at the integration tip. Never open or touch PRs — the factory writes its PR only after human accept (`/factory accept`).
 
 The goal is the entire spec implemented on the given **integration branch**, with every ticket resolved.
 
@@ -26,7 +26,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 4. Use **implementer subagents** to implement each frontier ticket, each in its own worktree on its own ticket branch (`factory/<job-id>-<ticket>`, under `<workspace>/<name>-factory/`, `<name>` = repo folder name). Each implementer subagent:
    - confirms its worktree is based on the integration branch tip before starting, and resets onto it if not;
    - calls the Skill tool with `tdd` to build the ticket;
-   - the moment an implementer is spawned, its `job.json` tickets entry and ticket file Status are set to `doing` (read-modify-write, tickets map only);
+   - the moment an implementer is spawned, its `job.json` tickets entry and ticket file Status are set to `doing` (read-modify-write, tickets map only), and the Job's `log.md` gets `- spawn implementer <ticket> round <N> → started` (append-only; stage lines belong to the orchestrator);
    - formats per host convention and commits on its ticket branch per host style (check the host `AGENTS.md`; originating host used `npx prettier --check`/`--write` and `feat(scope): Description`);
    - merges the integration branch tip into its own branch before reporting done;
    - on merge, its `job.json` tickets entry is set to `done`, and one read-modify-write on the ticket file sets `**Status:** done` and ticks every acceptance box (`- [ ]` → `- [x]`), immediately, so Dashboard chips and the ticket agree;
@@ -34,7 +34,9 @@ Communication to and from subagents should be sparse. Communicate primarily thro
    - for UI tickets: serves its worktree on its assigned port and performs the host's visual-check procedure (originating host: throwaway Playwright script, captures outside versioned assets). When the surface cannot render (no viewport or screenshot), it writes `Unverified: <what could not be checked>` in this round's `build.md` section instead of claiming a visual pass.
    Work runs from `<repo>`; follow the host `AGENTS.md` shell conventions (originating host: Windows PowerShell 5.1 — pass `workdir`, never `cd`).
 
-5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**.
+**CHANGES and resume rounds.** Before changing anything, reopen every already-`done` ticket whose code the round edits: set its `job.json` entry and ticket file Status to `doing`, and untick the acceptance boxes the change invalidates. On merge, set `done` and re-tick the boxes after re-verifying them at the new tip. The boxes certify behaviour at the integration tip, not at the first merge; a round that edits ticket code must not report "no ticket entry changed".
+
+5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**. After the merger reports the integration tip SHA, append `- spawn implementer <ticket> round <N> → <sha> ok` and `- merge <ticket> → <sha>` to the Job's `log.md` (append-only; never rewrite it). If the ticket never merges, append `- spawn implementer <ticket> round <N> → failed: <reason>` instead.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
 

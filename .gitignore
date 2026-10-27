@@ -2,6 +2,7 @@
 factory/jobs/*
 !factory/jobs/index.json
 factory/.lock
+!factory/BACKLOG.md
 
 # factory worktrees (live outside repo at ../<name>-factory/)
 *-factory/
@@ -23,3 +24,6 @@ PRODUCT.MD
 .agents/skills/grill-with-docs
 .agents/skills/grilling
 .agents/skills/implement
+
+# testing files
+dummy-app/specs
