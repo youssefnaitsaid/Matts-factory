@@ -1,6 +1,7 @@
 # factory runtime state (live job files) — keep manifest, ignore job runs
 factory/jobs/*
 !factory/jobs/index.json
+factory/.lock
 
 # factory worktrees (live outside repo at ../<name>-factory/)
 *-factory/

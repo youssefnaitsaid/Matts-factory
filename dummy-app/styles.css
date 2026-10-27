@@ -1,0 +1,45 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  max-width: 34rem;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+li.done span {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

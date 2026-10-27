@@ -1,7 +1,6 @@
 ---
 name: implement-spec-factory
 description: "Run a factory Job's implement stage on its integration branch. Factory-only — not for standalone use."
-disable-model-invocation: true
 ---
 
 You are running the implement stage of one factory Job. The spec is the Job folder's `spec.md`; the tickets are its `tickets/NN-*.md` files. Integration branch, worktrees, and ports arrive in your prompt — the branch already exists, never create it.
@@ -31,7 +30,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
    - formats per host convention and commits on its ticket branch per host style (check the host `AGENTS.md`; originating host used `npx prettier --check`/`--write` and `feat(scope): Description`);
    - merges the integration branch tip into its own branch before reporting done;
    - on merge, its `job.json` tickets entry and ticket file Status are set to `done` immediately (read-modify-write, tickets map only), so Dashboard chips fill in as tickets land;
-   - appends its round Log to the Job's `build.md`, keeping the first line `STATUS: READY` (or `STATUS: BLOCKED` + reason);
+   - rewrites the first line of the Job's `build.md` to this round's `STATUS: READY` (or `STATUS: BLOCKED` + reason), then appends its round Log under a `## Round N` heading, so line 1 always describes the current round;
    - for UI tickets: serves its worktree on its assigned port and performs the host's visual-check procedure (originating host: throwaway Playwright script, captures outside versioned assets).
    Work runs from `<repo>`; follow the host `AGENTS.md` shell conventions (originating host: Windows PowerShell 5.1 — pass `workdir`, never `cd`).
 

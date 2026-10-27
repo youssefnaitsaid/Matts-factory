@@ -31,3 +31,19 @@ _Avoid_: Queue
 **Needs-human**:
 The gate Stage. Always reached via ESCALATE; branch and worktrees stay for inspection until `/factory accept` or `/factory rework`.
 _Avoid_: Blocked (that is `STATUS: BLOCKED`), approval
+
+**Round**:
+One implement→review cycle, numbered from 1. A rework or amend starts a new Round with a fresh resume budget.
+_Avoid_: Iteration, attempt
+
+**Resume**:
+Re-entering a Job's loop from its current on-disk Stage after a crash or interrupted run. Not the same as a Round.
+_Avoid_: Retry, restart
+
+**Amend**:
+Changing a Job's `spec.md` after it was frozen, recorded with the old and new `specSha`. Resets every ticket because the target moved.
+_Avoid_: Edit, update
+
+**Integration branch**:
+`factory/<job-id>` — the branch ticket work merges into and review runs against. Never `main`; the human merges it by hand.
+_Avoid_: Job branch, feature branch
