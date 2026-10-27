@@ -1,11 +1,12 @@
-import { activeCount, addTodo, removeTodo, toggleTodo } from './todos.js';
+import { addTodo, DEFAULT_FILTER, removeTodo, selectView, toggleTodo } from './todos.js';
 
-const state = { todos: [] };
+const state = { todos: [], filter: DEFAULT_FILTER };
 
 function render() {
+  const view = selectView(state.todos, state.filter);
   const list = document.querySelector('#list');
   list.replaceChildren(
-    ...state.todos.map((todo) => {
+    ...view.visible.map((todo) => {
       const item = document.createElement('li');
       item.className = todo.done ? 'done' : '';
 
@@ -33,7 +34,7 @@ function render() {
       return item;
     }),
   );
-  document.querySelector('#count').textContent = `${activeCount(state.todos)} active`;
+  document.querySelector('#count').textContent = `${view.activeCount} active`;
 }
 
 document.querySelector('#form').addEventListener('submit', (event) => {
