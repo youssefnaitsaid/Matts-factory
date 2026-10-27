@@ -33,3 +33,11 @@ export function selectView(todos, filter) {
 export function isEmptyResult(todos, filter) {
   return filterTodos(todos, filter).length === 0;
 }
+
+export function clearCompleted(todos) {
+  return todos.filter((todo) => !todo.done);
+}
+
+export function hasCompleted(todos) {
+  return todos.some((todo) => todo.done);
+}

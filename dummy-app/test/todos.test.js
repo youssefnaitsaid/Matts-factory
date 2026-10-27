@@ -4,9 +4,11 @@ import test from 'node:test';
 import {
   activeCount,
   addTodo,
+  clearCompleted,
   DEFAULT_FILTER,
   FILTERS,
   filterTodos,
+  hasCompleted,
   isEmptyResult,
   removeTodo,
   selectView,
@@ -151,4 +153,39 @@ test('Completed is an empty result when no todo is done', () => {
 test('All is only empty when there are no todos at all', () => {
   assert.equal(isEmptyResult(sampleTodos(), 'all'), false);
   assert.equal(isEmptyResult([], 'all'), true);
+});
+
+test('clearCompleted removes every done todo and keeps open todos', () => {
+  const todos = addTodo(sampleTodos(), 'kept open');
+  const cleared = clearCompleted(todos);
+  assert.deepEqual(
+    cleared.map((todo) => todo.text),
+    ['open task', 'kept open'],
+  );
+  assert.equal(cleared.some((todo) => todo.done), false);
+});
+
+test('clearCompleted leaves an all-open list unchanged', () => {
+  const todos = addTodo(addTodo([], 'one'), 'two');
+  assert.deepEqual(clearCompleted(todos), todos);
+});
+
+test('hasCompleted tracks whether any todo is done', () => {
+  assert.equal(hasCompleted([]), false);
+  assert.equal(hasCompleted(addTodo([], 'one')), false);
+  assert.equal(hasCompleted(sampleTodos()), true);
+});
+
+test('clearing keeps the current filter applied and the count correct', () => {
+  const todos = addTodo(sampleTodos(), 'kept open');
+  const cleared = clearCompleted(todos);
+  assert.deepEqual(
+    filterTodos(cleared, 'completed').map((todo) => todo.text),
+    [],
+  );
+  assert.deepEqual(
+    filterTodos(cleared, 'active').map((todo) => todo.text),
+    ['open task', 'kept open'],
+  );
+  assert.equal(activeCount(cleared), 2);
 });
