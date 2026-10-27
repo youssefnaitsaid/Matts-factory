@@ -1,3 +1,7 @@
+export const FILTERS = ['all', 'active', 'completed'];
+
+export const DEFAULT_FILTER = 'all';
+
 export function addTodo(todos, text) {
   const trimmed = String(text).trim();
   if (!trimmed) return todos;
@@ -14,4 +18,26 @@ export function removeTodo(todos, id) {
 
 export function activeCount(todos) {
   return todos.filter((todo) => !todo.done).length;
+}
+
+export function filterTodos(todos, filter) {
+  if (filter === 'active') return todos.filter((todo) => !todo.done);
+  if (filter === 'completed') return todos.filter((todo) => todo.done);
+  return todos;
+}
+
+export function selectView(todos, filter) {
+  return { visible: filterTodos(todos, filter), activeCount: activeCount(todos) };
+}
+
+export function isEmptyResult(todos, filter) {
+  return filterTodos(todos, filter).length === 0;
+}
+
+export function clearCompleted(todos) {
+  return todos.filter((todo) => !todo.done);
+}
+
+export function hasCompleted(todos) {
+  return todos.some((todo) => todo.done);
 }

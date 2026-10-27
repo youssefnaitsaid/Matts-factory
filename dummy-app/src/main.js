@@ -1,11 +1,27 @@
-import { activeCount, addTodo, removeTodo, toggleTodo } from './todos.js';
+import {
+  addTodo,
+  clearCompleted,
+  DEFAULT_FILTER,
+  hasCompleted,
+  isEmptyResult,
+  removeTodo,
+  selectView,
+  toggleTodo,
+} from './todos.js';
 
-const state = { todos: [] };
+const state = { todos: [], filter: DEFAULT_FILTER };
+
+const filterButtons = document.querySelectorAll('#filters [data-filter]');
+const clearButton = document.querySelector('#clear');
 
 function render() {
+  const view = selectView(state.todos, state.filter);
+  for (const button of filterButtons) {
+    button.setAttribute('aria-pressed', String(button.dataset.filter === state.filter));
+  }
   const list = document.querySelector('#list');
   list.replaceChildren(
-    ...state.todos.map((todo) => {
+    ...view.visible.map((todo) => {
       const item = document.createElement('li');
       item.className = todo.done ? 'done' : '';
 
@@ -33,8 +49,24 @@ function render() {
       return item;
     }),
   );
-  document.querySelector('#count').textContent = `${activeCount(state.todos)} active`;
+  const isEmpty = isEmptyResult(state.todos, state.filter);
+  list.hidden = isEmpty;
+  document.querySelector('#empty').hidden = !isEmpty;
+  clearButton.disabled = !hasCompleted(state.todos);
+  document.querySelector('#count').textContent = `${view.activeCount} active`;
 }
+
+for (const button of filterButtons) {
+  button.addEventListener('click', () => {
+    state.filter = button.dataset.filter;
+    render();
+  });
+}
+
+clearButton.addEventListener('click', () => {
+  state.todos = clearCompleted(state.todos);
+  render();
+});
 
 document.querySelector('#form').addEventListener('submit', (event) => {
   event.preventDefault();
