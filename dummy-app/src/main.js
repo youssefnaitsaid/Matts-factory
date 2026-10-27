@@ -2,8 +2,13 @@ import { addTodo, DEFAULT_FILTER, removeTodo, selectView, toggleTodo } from './t
 
 const state = { todos: [], filter: DEFAULT_FILTER };
 
+const filterButtons = document.querySelectorAll('#filters [data-filter]');
+
 function render() {
   const view = selectView(state.todos, state.filter);
+  for (const button of filterButtons) {
+    button.setAttribute('aria-pressed', String(button.dataset.filter === state.filter));
+  }
   const list = document.querySelector('#list');
   list.replaceChildren(
     ...view.visible.map((todo) => {
@@ -35,6 +40,13 @@ function render() {
     }),
   );
   document.querySelector('#count').textContent = `${view.activeCount} active`;
+}
+
+for (const button of filterButtons) {
+  button.addEventListener('click', () => {
+    state.filter = button.dataset.filter;
+    render();
+  });
 }
 
 document.querySelector('#form').addEventListener('submit', (event) => {

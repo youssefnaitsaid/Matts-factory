@@ -90,3 +90,41 @@ test('activeCount ignores the current filter', () => {
   assert.equal(selectView(todos, 'completed').visible.length, 1);
   assert.equal(selectView(todos, 'all').visible.length, 2);
 });
+
+test('adding a todo keeps the current filter applied', () => {
+  const todos = addTodo(sampleTodos(), 'new task');
+  assert.deepEqual(
+    filterTodos(todos, 'active').map((todo) => todo.text),
+    ['open task', 'new task'],
+  );
+  assert.deepEqual(
+    filterTodos(todos, 'completed').map((todo) => todo.text),
+    ['done task'],
+  );
+});
+
+test('toggling a todo keeps the current filter applied', () => {
+  const todos = sampleTodos();
+  const toggled = toggleTodo(todos, todos[0].id);
+  assert.deepEqual(
+    filterTodos(toggled, 'active').map((todo) => todo.text),
+    [],
+  );
+  assert.deepEqual(
+    filterTodos(toggled, 'completed').map((todo) => todo.text),
+    ['open task', 'done task'],
+  );
+});
+
+test('removing a todo keeps the current filter applied', () => {
+  const todos = sampleTodos();
+  const remaining = removeTodo(todos, todos[1].id);
+  assert.deepEqual(
+    filterTodos(remaining, 'active').map((todo) => todo.text),
+    ['open task'],
+  );
+  assert.deepEqual(
+    filterTodos(remaining, 'completed').map((todo) => todo.text),
+    [],
+  );
+});
