@@ -2,13 +2,20 @@
 
 Local-only loop that turns a complete spec file into Done through **Matt Pocock skills**, with a static Dashboard for live status.
 
-the host repo (`<repo>`) is untouched except by Job branches. Canon lives in `GLOSSARY.md` (Factory/Job/Stage/Agent/Dashboard/Frontier/Needs-human); orchestrator + agents live in `.agents/skills/factory/`.
+The host repo (`<repo>`) is untouched except by Job branches. Canon lives in `GLOSSARY.md` (Factory/Job/Stage/Agent/Dashboard/Frontier/Needs-human); orchestrator + agents live in `.agents/skills/factory/`.
 
 Copy this folder's contents into a new workspace/repo root and run `/factory <path-to-spec.md>`.
 
 ## Dashboard
 
 ![Factory Dashboard](factory/dashboard.png)
+
+```powershell
+npx serve factory -l 8000
+# → http://localhost:8000/dashboard.html
+```
+
+Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines, cards in Needs-human stand out. Press `/` to filter, copy gate commands with one click, and click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`). The header icon switches light/dark; the choice is saved in `localStorage` under `factory.theme`, and with no saved choice the board follows the system preference.
 
 ## The loop
 
@@ -30,21 +37,12 @@ Run from an opencode session at the workspace root:
 /factory rework <job-id> <note> human says fix → back to implement with a fresh resume budget
 ```
 
-## Dashboard
-
-```powershell
-npx serve factory -l 8000
-# → http://localhost:8000/dashboard.html
-```
-
-Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines, cards in Needs-human stand out. Click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`).
-
 ## Layout
 
 ```
 factory/
   GLOSSARY.md          factory canon (host project vocabulary untouched)
-  dashboard.html       static board (dark, factory-owned theme)
+  dashboard.html       static board (light + dark, factory-owned theme)
   jobs/index.json      manifest of job ids (orchestrator-maintained)
   jobs/<job-id>/
     job.json           live state (orchestrator sole writer — Dashboard reads it)
