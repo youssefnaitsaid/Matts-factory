@@ -24,6 +24,7 @@ PRODUCT.MD
 .agents/skills/grill-with-docs
 .agents/skills/grilling
 .agents/skills/implement
+.agents/skills/implement-spec
 
 # testing files
 dummy-app/specs

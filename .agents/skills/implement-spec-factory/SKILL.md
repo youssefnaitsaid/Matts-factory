@@ -11,6 +11,8 @@ The goal is the entire spec implemented on the given **integration branch**, wit
 
 The tickets are not a list of steps. They are a **task graph** with blocking relationships between them. This means there is always a **frontier** of tickets which are ready to be grabbed.
 
+Start every subagent with a fresh context window.
+
 Communication to and from subagents should be sparse. Communicate primarily through **context pointers**: to the spec, tickets, research notes, and previous commits. Don't duplicate information already available via pointers.
 
 **Implementer subagents** should be run in the background where possible for maximum concurrency.
@@ -23,7 +25,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 3. Confirm the integration branch and worktree from your prompt exist and are current. Create nothing, open no PRs.
 
-4. Use **implementer subagents** to implement each frontier ticket, each in its own worktree on its own ticket branch (`factory/<job-id>-<ticket>`, under `<workspace>/<name>-factory/`, `<name>` = repo folder name). Each implementer subagent:
+4. Use a fresh **implementer subagents** for each frontier ticket, each in its own worktree on its own ticket branch (`factory/<job-id>-<ticket>`, under `<workspace>/<name>-factory/`, `<name>` = repo folder name). Each implementer subagent:
    - confirms its worktree is based on the integration branch tip before starting, and resets onto it if not;
    - calls the Skill tool with `tdd` to build the ticket;
    - the moment an implementer is spawned, its `job.json` tickets entry and ticket file Status are set to `doing` (read-modify-write, tickets map only), and the Job's `log.md` gets `- spawn implementer <ticket> round <N> → started` (append-only; stage lines belong to the orchestrator);
