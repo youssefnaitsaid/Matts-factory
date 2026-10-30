@@ -9,7 +9,7 @@ npx serve factory -l 8000
 # → http://localhost:8000/dashboard.html
 ```
 
-Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines (review shows `PASS · N` when N judgement-call smells were accepted), cards in Needs-human stand out with the first open item above the commands. Click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`).
+Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/index.json` + each `job.json` every 2s: ticket chips flip `pending → doing → done` with a `done/total` count, review/gate chips fill from first lines (review shows `PASS · N` when N judgement-call smells were accepted), cards in Needs-human stand out with the first open item above the commands. Press `/` to filter, copy gate commands with one click, click a card for the file drawer (`spec.md` → tickets → `build.md` → reviews → `decision.md` → `pr.md` → `retro.md`), and use the header icon to switch light/dark (saved locally under `factory.theme`, following the system preference until you choose).
 
 ## Layout
 
@@ -17,7 +17,7 @@ Static page, 5 columns (Tickets/Implement/Review/Needs-human/Done). Polls `jobs/
 factory/
   GLOSSARY.md          factory canon (host project vocabulary untouched)
   BACKLOG.md           retro candidates a human promotes into specs
-  dashboard.html       static board (dark, factory-owned theme)
+  dashboard.html       static board (light + dark console, factory-owned theme)
   .lock                one-orchestrator-per-workspace lock (created/removed by the orchestrator)
   jobs/index.json      manifest of job ids (orchestrator-maintained)
   jobs/<job-id>/
